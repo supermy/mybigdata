@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.1.xsd
+	">
+
+	<!-- 定时任务 开始 begin-->
+	<bean id="myJobDetail"
+		class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+		<property name="targetObject">
+			<!-- 定时执行的类 -->
+			<ref bean="myQuartzJob" />
+		</property>
+		<property name="targetMethod">
+			<!-- 定时执行的类方法 -->
+			<value>execute</value>
+		</property>
+	</bean>
+	<!-- 定时任务 开始 end-->
+
+	<!-- 定时任务 开始  begin-->
+	<bean id="taskExecutor" class="org.springframework.core.task.SimpleAsyncTaskExecutor">
+	</bean>
+
+	<!-- Spring Batch Job同一个job instance，成功执行后是不允许重新执行的【失败后是否允许重跑，可通过配置Job的restartable参数来控制，默认是true】，如果需要重新执行，可以变通处理， 
+		添加一个JobParameters构建类,以当前时间作为参数，保证其他参数相同的情况下却是不同的job instance -->
+	<bean id="jobParameterBulider" class="org.springframework.batch.core.JobParametersBuilder" />
+
+	<!-- Batch infrastructure -->
+	<batch:job-repository />
+
+	<bean id="jobLauncher"
+		class="org.springframework.batch.core.launch.support.SimpleJobLauncher"
+		p:jobRepository-ref="jobRepository" />
+	<!-- 定时任务 开始  end-->
+
+
+	<!-- 定时任务 开始 -->
+
+	<bean id="cronTrigger" class="org.springframework.scheduling.quartz.CronTriggerBean">
+		<!-- 这里不可以直接在属性jobDetail中引用taskJob，因为他要求的是一个jobDetail类型的对象， 所以我们得通过MethodInvokingJobDetailFactoryBean来转一下 -->
+		<property name="jobDetail">
+			<ref bean="myJobDetail" />
+		</property>
+		<!--在每天下午18点到下午18:59期间的每1分钟触发 -->
+		<!--在每天上午10点40分准时触发 -->
+		<!-- "0 * 16 * * ?" 在每天下午4点到下午4:59期间的每1分钟触发 -->
+
+		<property name="cronExpression">
+			<!-- <value>0 * 15 * * ?</value> <value>0 45 10 * * ? * </value> -->
+			<value>0 * * * * ?</value>
+		</property>
+
+	</bean>
+
+	<!-- 触发器工厂，将所有的定时任务都注入工厂 -->
+	<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+		<!-- 添加触发器 -->
+		<property name="triggers">
+			<list>
+				<!-- 将上面定义的测试定时任务注入（可以定义多个定时任务，同时注入） -->
+				<ref local="cronTrigger" />
+			</list>
+		</property>
+	</bean>
+	<!-- 定时任务 结束 -->
+
+</beans>

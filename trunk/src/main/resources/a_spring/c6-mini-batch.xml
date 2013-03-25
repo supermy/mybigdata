@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	spring mybatis 配置
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns:tx="http://www.springframework.org/schema/tx"
+     xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+     xmlns:batch="http://www.springframework.org/schema/batch"
+     xmlns:context="http://www.springframework.org/schema/context"
+
+
+     xsi:schemaLocation="
+     http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+     http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+     http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+	 http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.1.xsd
+     http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+	">
+
+    
+    <context:property-placeholder location="classpath*:config.properties" />
+    
+ 	<context:component-scan base-package="**.batch.mini" />
+
+	<alias name="miniQuartzJob" alias="myQuartzJob" />
+	
+	
+    <jdbc:embedded-database id="dataSource" type="HSQL"/>
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager"
+		lazy-init="true">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<import resource="classpath:a_spring/c3-batch.xml" />
+	<import resource="classpath:a_spring/c5-quartz.xml" />
+	
+	<!-- 定时任务 开始  job begin	
+	-->
+	
+	<!-- restartable 属性如果是false，则程序不允许重启。如果发生重启，会抛出JobRestartException异常。 -->
+	<batch:job id="mini-item" restartable="true">
+		
+		<batch:step id="step_hello" next="step_world">
+			<tasklet ref="hello" ></tasklet>
+		</batch:step>
+
+		<batch:step id="step_world">
+			<tasklet ref="world" ></tasklet>
+		</batch:step>
+ 		<batch:listeners>
+            <batch:listener ref="monitoringJobListener"></batch:listener>
+        </batch:listeners>
+	</batch:job>
+
+
+	<bean id="hello" class="org.supermy.batch.mini.WriteTaskLet">
+		<property name="message" value="Hello "></property>
+	</bean>
+
+	<bean id="world" class="org.supermy.batch.mini.WriteTaskLet">
+		<property name="message" value=" World!"></property>
+	</bean>
+	<!-- 定时任务 开始  job end-->
+
+  <!-- -->
+  	<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+        <property name="host" value="smtp.gmail.com"></property>
+    </bean>
+
+    <bean id="templateMessage" class="org.springframework.mail.SimpleMailMessage">
+        <property name="from" value="springclick@gmail.com" />
+        <property name="to" value="springclick@gmail.com"></property>
+    </bean>
+    
+    <bean id="emailMonitoringNotifier" class="org.supermy.batch.listener.EmailMonitoringNotifier">
+        <property name="mailSender" ref="mailSender" />
+        <property name="templateMessage" ref="templateMessage" />
+    </bean> 
+    
+    <bean id="logMonitoringNotifier" class="org.supermy.batch.listener.LogMonitoringNotifier">
+    </bean>
+    
+    <bean id="monitoringJobListener" class="org.supermy.batch.listener.MonitoringExecutionListener">
+        <!--
+        <property name="monitoringNotifier" ref="logMonitoringNotifier"></property>
+		-->
+        <property name="monitoringNotifier" ref="emailMonitoringNotifier"></property>
+    </bean>
+
+</beans>

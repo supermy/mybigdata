@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.1.xsd
+	">
+
+ 	<context:component-scan base-package="**.batch.job" />
+ 	
+	<!--
+chunk的属性有：
+a、reader
+b、processor
+c、writer
+d、commit-interval事物提交一次处理的items的数量。也是chunk的大小。
+e、skip-limit跳跃的次数
+f、skip-policy跳跃的策略：要实现SkipPolicy接口
+g、retry-policy重试的策略：要实现RetryPolicy接口
+h、retry-limit最大的重试次数
+i、cache-capacity重试的缓存策略
+j、reader-transactional-queue从一个拥有事务的JMS的queue读取item数据
+k、processor-transactional处理器是否包含事务处理
+l、chunk-completion-policychunk的完成策略
+		
+	-->
+	<!-- restartable 属性如果是false，则程序不允许重启。如果发生重启，会抛出JobRestartException异常。 
+		chunk-completion-policy="timeoutCompletionPolicy"
+		  skip-limit="20"  
+		
+	-->
+	<batch:job id="db2mongodb" restartable="true">
+		<batch:step id="write-collection" >
+			<!-- 并发2线程执行 task-executor="taskExecutor" throttle-limit="2" -->
+			<batch:tasklet>
+				<!-- 2条进行一次commit -->
+				<batch:chunk 
+					reader="reader" 
+					writer="itemMongodbWriter" 
+					processor="employeeProcessor"
+				
+					commit-interval="2" 
+					retry-limit="12"
+	                cache-capacity="100"  
+				> 
+                <batch:retryable-exception-classes>
+                    <batch:include class="java.lang.RuntimeException" />
+                </batch:retryable-exception-classes>
+			   </batch:chunk>
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+</beans>
