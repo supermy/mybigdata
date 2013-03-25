@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:batch="http://www.springframework.org/schema/batch"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.1.xsd
+	">
+
+	<bean id="mongod" class="com.mongodb.MongoClient">
+		<constructor-arg index="0"
+			value="#{ ${spring.batch.mongodb.address} ?: 'localhost' }" />
+		<constructor-arg index="1"
+			value="#{ ${spring.batch.mongodb.port} ?: 27017 }" />
+	</bean>
+
+	<!-- 
+	<bean id="mongodwriter"
+		class=" org.springframework.batch.item.mongodb.MongoDBItemWriter">
+		<property name="mongo" ref="mongod" />
+		<property name="db" value="${spring.batch.mongodb.name}" />
+		<property name="collection" value="${spring.batch.mongodb.collection.name}" />
+		<property name="converter" ref="itemConvert" />
+		<property name="transactional" value="false" />
+	</bean>
+	<bean id="employeeProcessor" class="org.supermy.batch.job.EmployeeProcessor" />
+		-->
+	
+
+
+	<!-- Item Writer -->
+	<bean id="itemConvert" class="org.supermy.employee.domain.ObjectEmployeeConverter" />
+
+	<bean id="itemMongodbWriter"
+		class="org.springframework.batch.item.mongodb.MongoDBItemWriter"
+		scope="step" p:mongo-ref="mongod" p:converter-ref="itemConvert"
+		p:db="#{jobParameters['db']}" p:collection="#{jobParameters['collection']}"
+		p:transactional="#{jobParameters['transactional']}" />
+
+
+</beans>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:integration="http://www.springframework.org/schema/integration"
+       xmlns:hdbc="http://www.springframework.org/schema/integration/jdbc"
+       xmlns:stream="http://www.springframework.org/schema/integration/stream"
+		xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+     xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+           http://www.springframework.org/schema/integration
+           http://www.springframework.org/schema/integration/spring-integration.xsd
+           http://www.springframework.org/schema/integration/jdbc
+		   http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc.xsd
+		   http://www.springframework.org/schema/integration/stream
+		   http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd
+   		   http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+     	   http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		">
+
+	<import resource="spring-batch-jdbc.xml" />
+
+
+<!--int begin-->
+  <!-- 此CHANNEL中放的是一个MEASSAGE，主体是SELECT出来的RESULT LIST<Map<String Object>> -->
+	<integration:channel id="jdbcChannel"/>
+  
+    <hdbc:inbound-channel-adapter channel="jdbcChannel" data-source="dataSource"
+               query="SELECT ATT_CODE, PARENT_CODE, ATT_TEXT, SEQ, OPT_DATE, MARK FROM ATTR_MESSAGE WHERE MARK = 'N'"
+               update="UPDATE ATTR_MESSAGE SET MARK = 'N' WHERE ATT_CODE IN (:ATT_CODE)">
+        
+      <!-- 每隔多少毫秒去抓取 -->  
+        <integration:poller fixed-rate="10000" max-messages-per-poll="5"/>    
+        <!--  指定时刻抓取  
+        <integration:poller fixed-rate="1000" >  
+            <integration:transactional/>  
+        </integration:poller>
+                <integration:poller max-messages-per-poll="1">  
+            <integration:transactional/>  
+            <integration:cron-trigger expression="0 0 3 * * ?"/>  
+        </integration:poller>  
+        -->  
+
+    </hdbc:inbound-channel-adapter>
+    
+    <integration:service-activator 
+    	input-channel="jdbcChannel" 
+    	output-channel="jobLaunchRequestChannel"
+    	ref="jdbcMessageHandler"
+        
+    />
+    <bean id="jdbcMessageHandler" class="org.supermy.batch.esb.JDBCToJobLaunchRequestAdapter" >
+           <property name="job" ref="jdbcJob"/>
+    </bean>
+    	
+    <integration:channel id="jobExecutionChannel"/>
+    <integration:channel id="jobLaunchRequestChannel"/>
+    <integration:logging-channel-adapter channel="jobExecutionChannel" />
+
+    <integration:service-activator input-channel="jobLaunchRequestChannel" output-channel="jobExecutionChannel">
+        <bean class="org.springframework.batch.integration.launch.JobLaunchingMessageHandler">
+            <constructor-arg ref="jobLauncher" />
+        </bean>
+    </integration:service-activator>
+<!--int end-->
+    
+</beans>

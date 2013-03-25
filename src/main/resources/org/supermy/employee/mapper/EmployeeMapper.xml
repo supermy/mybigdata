@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+	雇员数据查询
+-->
+<mapper namespace="org.supermy.employee.mapper.EmployeeMapper">
+
+    <select id="getEmployee" resultType="org.supermy.employee.domain.Employee">
+        select * from employees
+    </select>
+
+    <update id="updateEmployee" parameterType="org.supermy.employee.domain.Employee">
+        update employees set salary=#{salary} where id=#{id}
+    </update>
+
+    <select id="check" resultType="int">
+        select sum(salary) from employees
+    </select>
+
+	<select id="findByPage" parameterType="page"  resultType="org.supermy.employee.domain.Employee">
+		  select * from employees
+	</select>
+	
+	<select id="findByPage1" parameterType="hashmap"  resultType="hashmap">
+		  select * from employees
+	</select>
+
+</mapper>

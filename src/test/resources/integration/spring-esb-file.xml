@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans 	xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:integration="http://www.springframework.org/schema/integration"
+		xmlns:hdbc="http://www.springframework.org/schema/integration/jdbc"
+		xmlns:stream="http://www.springframework.org/schema/integration/stream"
+		xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:file="http://www.springframework.org/schema/integration/file"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+			http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+			http://www.springframework.org/schema/integration
+			http://www.springframework.org/schema/integration/spring-integration.xsd
+			http://www.springframework.org/schema/integration/jdbc
+			http://www.springframework.org/schema/integration/jdbc/spring-integration-jdbc.xsd
+			http://www.springframework.org/schema/integration/stream
+			http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd
+			http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+			http://www.springframework.org/schema/integration/file http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+		">
+
+	<import resource="classpath*:/integration/spring-batch-file.xml" />
+
+    <integration:channel id="fileChannel"/>
+    <integration:channel id="jobLaunchRequestChannel"/>
+    <integration:channel id="jobExecutionChannel"/>
+    <integration:logging-channel-adapter channel="jobExecutionChannel" />
+
+    <file:inbound-channel-adapter directory="I:/env-myopensource/mybigdata/src/test/resources/integration/in"
+        channel="fileChannel" filename-pattern="t*.xml" comparator="fileCreationTimeComparator">
+        <!--
+		-->
+        <integration:poller max-messages-per-poll="1" cron="0/1 * * * * *" />
+    </file:inbound-channel-adapter>
+    
+    <integration:service-activator input-channel="fileChannel"
+            output-channel="jobLaunchRequestChannel"
+                       ref="fileToJobLaunchRequestAdapter"
+                       method="adapt"/>
+                       
+    <integration:service-activator input-channel="jobLaunchRequestChannel" output-channel="jobExecutionChannel">
+        <bean class="org.springframework.batch.integration.launch.JobLaunchingMessageHandler">
+            <constructor-arg ref="jobLauncher" />
+        </bean>
+    </integration:service-activator>
+
+    <bean id="fileToJobLaunchRequestAdapter" class="org.supermy.batch.esb.FileToJobLaunchRequestAdapter">
+        <property name="job" ref="helloWorldJob"/>
+    </bean>
+    
+    
+    <bean id="fileCreationTimeComparator" class="org.supermy.batch.esb.FileCreationTimeComparator">
+    </bean>
+
+</beans>

@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:batch="http://www.springframework.org/schema/batch"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+	     http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch-2.1.xsd">
+
+ 	<context:component-scan base-package="org.supermy.batch.study.**" />
+
+
+	<import resource="classpath*:/base-job.xml" />
+	<bean id="transactionManager"
+		class="org.springframework.batch.support.transaction.ResourcelessTransactionManager" />
+
+	<batch:job id="helloWorldJob">
+		<batch:step id="step_hello" next="step_world">
+			<batch:tasklet ref="hello" ></batch:tasklet>
+		</batch:step>
+		<batch:step id="step_world">
+			<batch:tasklet ref="world" ></batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<bean id="hello" class="org.supermy.batch.study.WriteTaskLet">
+		<property name="message" value="Hello "></property>
+	</bean>
+
+	<bean id="world" class="org.supermy.batch.study.WriteTaskLet">
+		<property name="message" value=" World!"></property>
+	</bean>
+
+
+
+	<batch:job id="csvJob">
+		<batch:step id="csvStep">
+			<batch:tasklet >
+				<batch:chunk reader="csvItemReader" writer="csvItemWriter"
+					processor="csvItemProcessor" commit-interval="1">
+				</batch:chunk>
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<!-- 读取csv文件 -->
+	<bean id="csvItemReader"
+		class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+		<property name="resource"
+			value="classpath:batchstudy/in/spring-batch-inputFile.csv" />
+		<property name="lineMapper">
+			<bean
+				class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+				<property name="lineTokenizer" ref="lineTokenizer" />
+				<property name="fieldSetMapper">
+					<bean
+						class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+						<property name="prototypeBeanName" value="student"></property>
+					</bean>
+				</property>
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="student" class="org.supermy.batch.study.Student"></bean>
+
+	<!-- lineTokenizer -->
+	<bean id="lineTokenizer"
+		class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+		<property name="delimiter" value="," />
+		<property name="names">
+			<list>
+				<value>ID</value>
+				<value>name</value>
+				<value>age</value>
+				<value>score</value>
+			</list>
+		</property>
+	</bean>
+
+
+	<!-- 写CSV文件 -->
+	<bean id="csvItemWriter"
+		class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+		<property name="resource"
+			value="file:src/test/resources/batchstudy/out/spring-batch-outputFile.csv" />
+		<property name="lineAggregator">
+			<bean
+				class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+				<property name="delimiter" value=","></property>
+				<property name="fieldExtractor">
+					<bean
+						class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+						<property name="names" value="name,age,score"></property>
+					</bean>
+				</property>
+			</bean>
+		</property>
+	</bean>
+
+
+
+	<batch:job id="xmlFileReadAndWriterJob">
+		<batch:step id="xmlFileReadAndWriterStep">
+			<batch:tasklet>
+				<batch:chunk reader="xmlReader" writer="xmlWriter" processor="xmlProcessor"
+					commit-interval="10">
+				</batch:chunk>
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<!-- XML文件读取 -->
+	<bean id="xmlReader"
+		class="org.springframework.batch.item.xml.StaxEventItemReader" scope="step">
+		<property name="fragmentRootElementName" value="goods" />
+		<property name="unmarshaller" ref="tradeMarshaller" />
+		<property name="resource"
+			value="file:src/test/resources/#{jobParameters['inputFilePath']}"></property>
+	</bean>
+
+	<!-- XML文件写入 -->
+	<bean id="xmlWriter"
+		class="org.springframework.batch.item.xml.StaxEventItemWriter" scope="step">
+		<property name="rootTagName" value="wanggc" />
+		<property name="marshaller" ref="tradeMarshaller" />
+		<property name="resource"
+			value="file:src/test/resources/#{jobParameters['outputFilePath']}" />
+	</bean>
+
+	<bean id="tradeMarshaller"
+		class="org.springframework.oxm.xstream.XStreamMarshaller">
+		<property name="aliases">
+			<util:map id="aliases">
+				<entry key="goods" value="org.supermy.batch.study.Goods" />
+				<entry key="buyDay" value="java.util.Date"></entry>
+			</util:map>
+		</property>
+	</bean>
+	
+
+     <!-- Job信息的配置 -->
+     <batch:job id="fixedLengthJob">
+         <batch:step id="fixedLengthStep">
+             <batch:tasklet>
+                 <batch:chunk reader="fixedLengthReader" writer="fixedLengthWriter"
+                     processor="fixedLengthProcessor" commit-interval="10">
+                 </batch:chunk>
+             </batch:tasklet>
+         </batch:step>
+     </batch:job>
+ 
+     <!-- 固定长文件的读信息的配置 -->
+     <bean id="fixedLengthReader"
+         class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+         <property name="resource"
+             value="file:src/test/resources/#{jobParameters['inputFilePath']}" />
+         <property name="lineMapper">
+             <bean
+ class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+                 <property name="lineTokenizer" ref="lineTokenizerFixed" />
+                 <property name="fieldSetMapper">
+                     <bean
+ class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+                         <property name="prototypeBeanName" value="student"/>
+                     </bean>
+                 </property>
+             </bean>
+         </property>
+     </bean>
+     
+
+         
+     <bean id="lineTokenizerFixed"
+         class="org.springframework.batch.item.file.transform.FixedLengthTokenizer">
+         <property name="columns" value="1-6,7-15,16-17,18-20" />
+         <property name="names" value="ID,name,age,score" />
+     </bean>
+ 
+     <!-- 固定长格式文件的写 -->
+     <bean id="fixedLengthWriter"
+         class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+         <property name="resource"
+             value="file:src/test/resources/#{jobParameters['outputFilePath']}" />
+         <property name="lineAggregator">
+             <bean
+ class="org.springframework.batch.item.file.transform.FormatterLineAggregator">
+                 <property name="fieldExtractor">
+                     <bean
+ class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+                         <property name="names" value="ID,name,age,score" />
+                     </bean>
+                 </property>
+                 <property name="format" value="%-9s%-20s%3d%-2.0f" />
+             </bean>
+         </property>
+     </bean>
+ 	
+
+
+
+
+
+     <!-- Job的配置信息 -->
+     <batch:job id="multiTypeSingleFileJob">
+         <batch:step id="multiFileReadAndWriterStep">
+             <batch:tasklet>
+                 <batch:chunk reader="multiTypesItemReader" writer="multiTypesItemWriter"
+                     commit-interval="1">
+                     <batch:streams>
+                         <batch:stream ref="studentWriter" />
+                         <batch:stream ref="goodsWriter" />
+                     </batch:streams>
+                 </batch:chunk>
+             </batch:tasklet>
+         </batch:step>
+     </batch:job>
+ 
+     <!-- 不同格式数据的文件读取 -->
+     <bean id="multiTypesItemReader"
+         class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+         <property name="resource"
+             value="file:src/test/resources/#{jobParameters['inputFilePath']}" />
+         <property name="lineMapper">
+             <bean
+ class="org.springframework.batch.item.file.mapping.PatternMatchingCompositeLineMapper">
+                 <property name="tokenizers">
+                     <map>
+                         <entry key="student*" value-ref="studentTokenizer" />
+                         <entry key="goods*" value-ref="goodsTokenizer" />
+                     </map>
+                 </property>
+                 <property name="fieldSetMappers">
+                     <map>
+                         <entry key="student*" value-ref="studentFieldSetMapper" />
+                         <entry key="goods*" value-ref="goodsFieldSetMapper" />
+                     </map>
+                 </property>
+             </bean>
+         </property>
+     </bean>
+     <bean id="studentTokenizer"
+         class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+         <property name="delimiter" value="," />
+         <property name="names">
+             <list>
+                 <value>student</value>
+                 <value>ID</value>
+                 <value>name</value>
+                 <value>age</value>
+                 <value>score</value>
+             </list>
+         </property>
+     </bean>
+     <bean id="studentFieldSetMapper"
+         class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+         <property name="prototypeBeanName" value="student" />
+         <property name="distanceLimit" value="100" />
+     </bean>
+ 
+     <bean id="goodsTokenizer"
+         class="org.springframework.batch.item.file.transform.FixedLengthTokenizer">
+         <property name="columns" value="6-13,14-17,18-22,23-32,33-" />
+         <property name="names"
+             value="isin,quantity,price,customer,buyDay" />
+     </bean>
+     <bean id="goodsFieldSetMapper"
+         class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+         <property name="prototypeBeanName" value="goods" />
+     </bean>
+     <!-- 商品Pojo类 -->
+     <bean id="goods"
+         class="org.supermy.batch.study.Goods"
+         scope="prototype" />
+ 
+     <bean id="multiTypesItemWriter"
+         class="org.supermy.batch.study.MultiItemWriter">
+         <property name="delegates">
+             <list>
+                 <ref bean="studentWriter" />
+                 <ref bean="goodsWriter" />
+             </list>
+         </property>
+     </bean>
+     <!-- 学生信息的写 -->
+     <bean id="studentWriter"
+         class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+         <property name="resource"
+             value="file:src/test/resources/#{jobParameters['outputFilePathStudent']}" />
+         <property name="lineAggregator">
+             <bean
+ class="org.springframework.batch.item.file.transform.FormatterLineAggregator">
+                 <property name="fieldExtractor">
+                     <bean
+ class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+                         <property name="names" value="ID,name,age,score" />
+                     </bean>
+                 </property>
+                 <property name="format" value="%-9s%-9s%3d%-2.0f" />
+             </bean>
+         </property>
+     </bean>
+     <!-- 商品信息的写 -->
+     <bean id="goodsWriter"
+         class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+         <property name="resource"
+             value="file:#{jobParameters['outputFilePathGoods']}" />
+         <property name="lineAggregator">
+             <bean
+ class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+                 <property name="fieldExtractor">
+                     <bean
+ class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+                         <property name="names"
+                             value="isin,quantity,price,customer,buyDay" />
+                     </bean>
+                 </property>
+             </bean>
+         </property>
+     </bean>
+ 
+</beans>
